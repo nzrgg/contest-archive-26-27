@@ -6,7 +6,7 @@
 #include <limits>
 #include <utility>
 #include <cmath>
-#include <map>
+#include <algorithm>
 
 class TGraph {
 public:
@@ -14,8 +14,8 @@ public:
         : CitiesNum_(n)
         , MainCityA_(0)
         , MainCityB_(0)
-        , Coords_(n, {0, 0})
-        , SpecialCities_()
+        , Coords_(n)
+        , SpecialCities_(10000)
     {
     }
     void ReadCitiesCoords(std::istream& stream) {
@@ -36,8 +36,8 @@ public:
             stream >> vertex1 >> vertex2 >> distance;
             --vertex1;
             --vertex2;
-            SpecialCities_[uint64_t(vertex1) << 32 | vertex2] = distance;
-            SpecialCities_[uint64_t(vertex2) << 32 | vertex1] = distance;
+            SpecialCities_[vertex1].push_back({vertex2, distance});
+            SpecialCities_[vertex2].push_back({vertex1, distance});
         }
     }
     void ReadMainCities(std::istream& stream) {
@@ -53,33 +53,40 @@ private:
     std::vector<double> Dijkstra(uint32_t start) const {
         double dx = 0.0;
         double dy = 0.0;
-        double w = 0.0;
-        const double INF = std::numeric_limits<double>::max();
-        std::vector<double> distance(CitiesNum_, INF);
-        distance[start] = 0;
-        std::priority_queue<std::pair<double, uint32_t>, std::vector<std::pair<double, uint32_t>>, std::greater<std::pair<double, uint32_t>>> pq;
-        pq.push({0, start});
-        while (!pq.empty()) {
-            auto [dist, city] = pq.top();
-            pq.pop();
-            if (dist > distance[city]) {
-                continue;
+        double weight = 0.0;
+        const double InfDouble = std::numeric_limits<double>::max() / 2;
+        const uint32_t InfInt = std::numeric_limits<uint32_t>::max() / 2;
+        std::vector<double> distance(CitiesNum_, InfDouble);
+        std::vector<bool> used(CitiesNum_, false);
+        distance[start] = 0.0;
+        for (uint32_t i = 0; i < CitiesNum_; ++i) {
+            uint32_t city = InfInt;
+
+            for (uint32_t j = 0; j < CitiesNum_; ++j) {
+                if (!used[j] && (city == InfInt || distance[j] < distance[city])) {
+                    city = j;
+                }
             }
-            for (uint32_t v = 0; v < CitiesNum_; ++v) {
-                if (v == city) {
+
+            if (distance[city] - InfDouble >= 0) {
+                break;
+            }
+            used[city] = true;
+            for (uint32_t neighbor = 0; neighbor < CitiesNum_; ++neighbor) {
+                if (neighbor == city) {
                     continue;
                 }
-                uint64_t key = (uint64_t(city) << 32) | v;
-                if (auto search = SpecialCities_.find(key); search != SpecialCities_.end()) {
-                    w = search->second;
-                } else {
-                    dx = Coords_[city].first - Coords_[v].first;
-                    dy = Coords_[city].second - Coords_[v].second;
-                    w = std::sqrt(dx * dx + dy * dy);
+                dx = static_cast<double>(Coords_[city].first) - static_cast<double>(Coords_[neighbor].first);
+                dy = static_cast<double>(Coords_[city].second) - static_cast<double>(Coords_[neighbor].second);
+                weight = std::sqrt(dx * dx + dy * dy);
+                for (const auto& p : SpecialCities_[neighbor]) {
+                    if (p.first == city) {
+                        weight = p.second;
+                        break;
+                    }
                 }
-                if (distance[v] > w + dist) {
-                    distance[v] = w + dist;
-                    pq.push({distance[v], v});
+                if (distance[neighbor] > weight + distance[city]) {
+                    distance[neighbor] = weight + distance[city];
                 }
             }
         }
@@ -90,7 +97,7 @@ private:
     uint32_t MainCityA_;
     uint32_t MainCityB_;
     std::vector<std::pair<int32_t, int32_t>> Coords_;
-    std::map<uint64_t, int32_t> SpecialCities_;
+    std::vector<std::vector<std::pair<uint32_t, int32_t>>> SpecialCities_;
 };
 
 int main() {
@@ -102,4 +109,4 @@ int main() {
     graph.ReadMainCities(std::cin);
     std::cout << graph.GetShortestPath() << std::endl;
     return 0;
-}
+}   

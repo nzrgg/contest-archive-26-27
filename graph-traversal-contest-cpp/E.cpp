@@ -6,17 +6,17 @@
 #include <algorithm>
 #include <limits>
 
-const uint32_t UNVISITED = std::numeric_limits<int32_t>::max();
 
 class TGraph {
 public:
     TGraph(uint32_t n)
-        : NumVertices_(n)
+        : Unvisited_(std::numeric_limits<int32_t>::max())
+        , NumVertices_(n)
         , Timer_(0)
         , SCCNum_(1)
         , Adj_(n)
         , Low_(n)
-        , Tin_(n, UNVISITED)
+        , Tin_(n, Unvisited_)
         , SCCMarker_(n)
         , OnStack_(n)
         , Stack_()
@@ -36,7 +36,7 @@ public:
     }
     void GrapCondensation() {
         for (uint32_t i = 0; i < NumVertices_; ++i) {
-            if (Tin_[i] == UNVISITED) {
+            if (Tin_[i] == Unvisited_) {
                 DepthFirstSearch(i);
             }
         }
@@ -55,11 +55,11 @@ public:
         Stack_.push(vertex);
         OnStack_[vertex] = true;
         for (uint32_t next : Adj_[vertex]) {
-            if (Tin_[next] == UNVISITED) {
+            if (Tin_[next] == Unvisited_) {
                 DepthFirstSearch(next);
                 Low_[vertex] = std::min(Low_[vertex], Low_[next]);
             }
-            if (Tin_[next] != UNVISITED && OnStack_[next]) {
+            if (Tin_[next] != Unvisited_ && OnStack_[next]) {
                 Low_[vertex] = std::min(Low_[vertex], Tin_[next]);
             }
         }
@@ -78,13 +78,14 @@ public:
         return;
     }
 private:
+    const uint32_t Unvisited_;
     uint32_t NumVertices_, Timer_;
     int32_t SCCNum_;
     std::vector<std::vector<uint32_t>> Adj_;
     std::vector<uint32_t> Low_, Tin_;
     std::vector<int32_t> SCCMarker_;
     std::vector<bool> OnStack_;
-    std::stack<uint32_t> Stack_; 
+    std::stack<uint32_t> Stack_;
 };
 
 int main() {
